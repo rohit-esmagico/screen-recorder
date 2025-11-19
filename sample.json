@@ -1,0 +1,906 @@
+{
+  "info": {
+    "name": "WebSocket Recording Events",
+    "description": "All WebSocket events captured from test run",
+    "generated_at": "2025-11-17T09:03:36.227448"
+  },
+  "websocket_url": "ws://localhost:8000/ws/recording/{websocket_id}",
+  "events": [
+    {
+      "timestamp": "2025-11-17T09:03:18.420326",
+      "event_type": "authenticate",
+      "direction": "sent",
+      "description": "Authentication",
+      "data": {
+        "event": "authenticate",
+        "data": {
+          "token": "c2MbFAOf_K3_9pGnW7QfMn3C1c0EY6Z4A2QhQrSEiOc"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:18.423776",
+      "event_type": "authenticated",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "authenticated",
+        "data": {
+          "success": true,
+          "message": "Authentication successful"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:18.423922",
+      "event_type": "initialize_session_recording",
+      "direction": "sent",
+      "description": "Initialize session recording",
+      "data": {
+        "event": "initialize_session_recording",
+        "data": {
+          "interview_session_id": 1,
+          "file_extension" :"webm",
+          "file_type" : "video/webm"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:18.574073",
+      "event_type": "session_recording_initialized",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "session_recording_initialized",
+        "data": {
+          "recording_asset_id": 103,
+          "object_key": "interview-recordings/session_1_1763370198.webm",
+          "status": "started",
+          "last_part_number": 0,
+          "uploaded_parts": []
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:18.574272",
+      "event_type": "get_session_status",
+      "direction": "sent",
+      "description": "Get session status",
+      "data": {
+        "event": "get_session_status",
+        "data": {
+          "interview_session_id": 1
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:18.686114",
+      "event_type": "session_status_response",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "session_status_response",
+        "data": {
+          "status": "INPROGRESS",
+          "recording_asset_id": 103,
+          "last_part_number": 0,
+          "uploaded_parts": [],
+          "total_parts": 0,
+          "file_size": 0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:19.067834",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 1 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 1,
+          "chunk_data": "AAAAGGZ0eXBtcDQyAAAAAG1wNDFpc29tAAAAKHV1aWRcpwj7Mo5CBahhZQ7KCpWWAAAADDEwLjAuMjYyMDAuMAUFJURtZGF0AAAA... (truncated, full size: 6990508 chars)",
+          "checksum": "50a5de6d3b7257360ee77ca176d07837f0377945e28aaf1c5286bdc29aba1b59",
+          "start_timestamp": 10.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:19.546238",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 1,
+          "task_id": "96e7c667-5018-49bc-ad5e-bfd57878c1c8",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:20.418180",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 2 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 2,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "85b7694204d17c5b4659b2f058ed3eac4b2a777bae22fa928b7e909cfee7c639",
+          "start_timestamp": 20.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:20.657168",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 2,
+          "task_id": "0c4cbb50-77c8-41aa-9294-51b1556b8c8c",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:21.389180",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 3 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 3,
+          "chunk_data": "vpF32VzaQ8kmOI6Pd4kKh0gcQJt64LPH/JxKiBJoYUDHmiG/huZMyZeo6/fd9UuOOfyLDBG51yi3FGIquZvN3+W13ExbJkacQ59+... (truncated, full size: 6990508 chars)",
+          "checksum": "13eb5077f71e206a5c2465564ea947d644e45d9b9f7b19eb82c4035004878b43",
+          "start_timestamp": 30.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:21.389777",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 1,
+        "etag": "9984e66cbe7ae0801881e58b5e273c22"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:22.190607",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 4 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 4,
+          "chunk_data": "MHwN+wkHG8DRXXuFvcfHRkoLcgD+cR4vKmKZqTpyzR/F4qwqhinRriikW2NFT6DamZcmeDBD7iDoawm4/72ZRtycHGC19Fw35T7Q... (truncated, full size: 6990508 chars)",
+          "checksum": "e3cbf00d67419b1112b1d8a9ce4534c232649978e880155401adb55de98ba320",
+          "start_timestamp": 40.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:22.190948",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 3,
+          "task_id": "2c1fbbd9-0032-48c6-b425-fc41987245ab",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:22.971585",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 5 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 5,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "82c24678a139af5749457219fb1a5e62be4b4e6101d86c722c42ca68cf380b4f",
+          "start_timestamp": 50.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:22.971808",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 2,
+        "etag": "6c3195cd798f2f5a4f88d3147b0ca438"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:23.792638",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 6 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 6,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "273cc035102f647c3b4f6f04a0e5676cfd87e858894d3dfa377336caf874c05b",
+          "start_timestamp": 60.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:23.792824",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 4,
+          "task_id": "e714a1c4-0ed7-4141-8f29-f379b4f3763c",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:24.564881",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 7 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 7,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "190c8c37a982cbd798d4b78df5236d8d5079ed2817824798294649eb8933900a",
+          "start_timestamp": 70.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:24.565265",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 3,
+        "etag": "ecfa3c6b4caa741657113351f422f86c"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:25.452492",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 8 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 8,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "c3b889a3610c635c5cc6704e331f320614983e3e9f61d0026820830afe5e83dc",
+          "start_timestamp": 80.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:25.452734",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 5,
+          "task_id": "ff915799-357a-4f31-b768-7a0c0ebfdd37",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:26.328339",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 9 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 9,
+          "chunk_data": "5dPJs3ejF12+nX4FNJZ/87oJ6A4Hxx1QI1+9Fq62e69EJYOgiOUGp/sg0ACEYn5wxJW0SYMWBDe+t5pB/I+7LTu/a+z1zFXf+b5I... (truncated, full size: 6990508 chars)",
+          "checksum": "ffe13739e8b3f092ffccb78485035fb1547493d13da41a3173ab492741ac39b1",
+          "start_timestamp": 90.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:26.328555",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 4,
+        "etag": "66d316943f343221c88fc762d3fdff16"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:27.501743",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 10 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 10,
+          "chunk_data": "brGPocV/EBiZS7UvsL2CqzmZ2SjSx3yIQvHbLDYk+YeQl6tW4JLRHlQYH88Td8kNRBMm2AEwH0OgNhX37iINt3l23mYS7/dXnzud... (truncated, full size: 6990508 chars)",
+          "checksum": "ecf5c1fbaf306cd17025ef741599f3825756007643475b1fc6896120c06e1b1b",
+          "start_timestamp": 100.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:27.502205",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 6,
+          "task_id": "bbc1511d-44c8-4408-8a93-e810a0aef406",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:28.611265",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 11 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 11,
+          "chunk_data": "D4AF49CpjyZ8EBGG/0zJJf//912sYkEdYgaDY/z35Cc9VjMDa2bA7U2AZVphX6Ftik6g32xwKSVC6exhDgfT/peKoiibvQVlB+Tg... (truncated, full size: 6990508 chars)",
+          "checksum": "1df288ed50f67dea84f114d88eabcfbc61770fb5d8cc13962dc4ad896eff3c1a",
+          "start_timestamp": 110.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:28.611490",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 5,
+        "etag": "505e22888e38cdd5be29cc0f00a86d3d"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:29.525496",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 12 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 12,
+          "chunk_data": "f9DcWg/JsZ6+x1idn2NwPy/uu2Dg2weDMHsPP4T31p6m2So/Zk2PJQzWUOd5jxh8Af+ANzX7bOAK8r3z9yp7qRsiZnQiFynXFzK6... (truncated, full size: 6990508 chars)",
+          "checksum": "da536fb84d01f38996caa2b37bfdfd348ddc2f0e3eb705ce70ddaa17db3dc894",
+          "start_timestamp": 120.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:29.525725",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 7,
+          "task_id": "070f5c60-7d0e-4757-ab59-67378ef1f56f",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:30.435723",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 13 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 13,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "65218cf5fab6639424e6f575c9a18e4880b04e898b10022df1d0dc70598b015e",
+          "start_timestamp": 130.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:30.435921",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 6,
+        "etag": "e0eeef026ef5f112e82197a5ad5ac7af"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:31.285341",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 14 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 14,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "770771386e278448f06d9e6e3b598c3ef43d83b765cbba4bdba9338ed932dd7f",
+          "start_timestamp": 140.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:31.285670",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 8,
+          "task_id": "9f317671-6858-4bee-a389-020714f1b87f",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:32.096902",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 15 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 15,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "83a9852c6a5955d7fc1c8c8b43e49676ae6b5658f9b4fc42d0fd8d70d1ae75b0",
+          "start_timestamp": 150.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:32.097311",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 7,
+        "etag": "41b3783abd6027cc1977c8b73a90616e"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:32.891914",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 16 (5,242,880 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 16,
+          "chunk_data": "////////////////////////////////////////////////////////////////////////////////////////////////////... (truncated, full size: 6990508 chars)",
+          "checksum": "1ff8f5ee6388ccc46425deeeebaaa3f6ed3bf53804719440a936b793bd8522b6",
+          "start_timestamp": 160.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:32.892106",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 9,
+          "task_id": "6dd99044-219c-4ba1-964d-b1e60309c394",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:33.433704",
+      "event_type": "upload_chunk",
+      "direction": "sent",
+      "description": "Upload chunk 17 (365,622 bytes)",
+      "data": {
+        "event": "upload_chunk",
+        "data": {
+          "asset_id": 103,
+          "part_number": 17,
+          "chunk_data": "L8TWntvI6Jd8fHw4ayTXcehkJyccjUSJ2GdgJRAWMImT6NoAzr6Hq+M744MPtitjop5OMIYx9CW4Y3l2ybUn5rk0oAwUMVgSVqDX... (truncated, full size: 487496 chars)",
+          "checksum": "cc66b038481f48f3cf12293304800e0d41a191ae4e13c5b77d9a05898ac6397f",
+          "start_timestamp": 170.0,
+          "duration_seconds": 10.0
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:33.433889",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 8,
+        "etag": "a31a12e0503a96522f09dde58da8f225"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938051",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 9,
+        "etag": "219337d09f0e105c9128791bdd0b4701"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938155",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 10,
+          "task_id": "c4ab4c24-722d-44ea-bc85-83532ef754ea",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938212",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 11,
+          "task_id": "467994df-871a-424c-b9a3-7a681c5b155d",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938287",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 10,
+        "etag": "d9e63bafb952a7dccefc8a7db81bcb6b"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938335",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 12,
+          "task_id": "d1c7cb9c-6975-4dc0-8bc0-e8ddd2fa5e36",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938369",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 11,
+        "etag": "1cee7c704472a6416712ecdcb1736d07"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938414",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 13,
+          "task_id": "45bfd74a-474c-4b58-a081-5edb2d6a7d38",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938471",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 12,
+        "etag": "604edceb23b5ba23bb2ea93383e8f4b2"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938540",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 14,
+          "task_id": "8c1d1894-d525-4ac9-9259-c13ae3cfff6e",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938607",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 13,
+        "etag": "eb63dd7ad1a4de9ddf12278ccd6b7663"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938674",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 15,
+          "task_id": "773df43e-b615-4741-b523-6d77909cb082",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938719",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 14,
+        "etag": "a8f2dbf902a383a5a3bac562e54e9c13"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938836",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 16,
+          "task_id": "90efa06f-9cea-4b7c-b788-bc38cfe9df69",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938901",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 15,
+        "etag": "fee9eeaead7896915d45f223f3eb9bc8"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938945",
+      "event_type": "chunk_queued",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "chunk_queued",
+        "data": {
+          "part_number": 17,
+          "task_id": "28edf794-d3cf-433f-948b-e892adbe13f0",
+          "message": "Upload queued for processing"
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.938985",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 17,
+        "etag": "4eeddb86a5537956ba3439ee37fdb37f"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:35.939063",
+      "event_type": "unknown",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "type": "chunk_ack",
+        "status": "success",
+        "part_number": 16,
+        "etag": "aba8a78e4ed035a90c3cb0fd743864ad"
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:36.040007",
+      "event_type": "upload_completed",
+      "direction": "sent",
+      "description": "Complete upload",
+      "data": {
+        "event": "upload_completed",
+        "data": {
+          "asset_id": 103
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:36.118695",
+      "event_type": "upload_complete",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "upload_complete",
+        "data": {
+          "status": "success",
+          "asset_id": 103,
+          "file_size": 84251702,
+          "total_parts": 17
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:36.118972",
+      "event_type": "get_session_status",
+      "direction": "sent",
+      "description": "Get session status",
+      "data": {
+        "event": "get_session_status",
+        "data": {
+          "interview_session_id": 1
+        }
+      }
+    },
+    {
+      "timestamp": "2025-11-17T09:03:36.226299",
+      "event_type": "session_status_response",
+      "direction": "received",
+      "description": "Server response",
+      "data": {
+        "event": "session_status_response",
+        "data": {
+          "status": "COMPLETED",
+          "recording_asset_id": 103,
+          "last_part_number": 17,
+          "uploaded_parts": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            17,
+            16
+          ],
+          "total_parts": 17,
+          "file_size": 84251702
+        }
+      }
+    }
+  ],
+  "event_types": {
+    "authenticate": "First message to authenticate with websocket_token",
+    "initialize_session_recording": "Initialize recording session",
+    "get_session_status": "Get current session status",
+    "upload_chunk": "Upload video chunk (base64 encoded)",
+    "upload_completed": "Complete multipart upload"
+  }
+}
