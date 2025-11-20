@@ -25,15 +25,16 @@ export default function ScreenRecorder() {
     partNumber: 0
   });
 
-  const chunkBuffer = useRef<Blob[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const assetIdRef = useRef<number | null>(null);
   const partNumberRef = useRef(0);
   const recordingStartTime = useRef<number>(0);
   const chunkStartTime = useRef<number>(0);
-  const uploadIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const uploadCompleteReceived = useRef(false);
-  const chunkSize = 5 * 1024 * 1024; // 5MB for MinIO multipart uploads
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderOptionsRef = useRef<MediaRecorderOptions | null>(null);
+  const isRecordingRef = useRef(false);
+  const chunkIntervalMs = 10000; // 10 seconds per chunk
 
   const connectWebSocket = useCallback(() => {
     const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_DOMAIN}/ws/recording/${websocketId}`;
@@ -71,6 +72,8 @@ export default function ScreenRecorder() {
       } else if (message.event === 'session_recording_initialized') {
         console.log('🎬 Recording initialized, asset ID:', message.data.recording_asset_id);
         assetIdRef.current = message.data.recording_asset_id;
+        partNumberRef.current = message.data.last_part_number || 0;
+        console.log(`🔢 Resuming from part ${partNumberRef.current}`);
         setState(prev => ({
           ...prev,
           recordingAssetId: message.data.recording_asset_id
@@ -125,7 +128,7 @@ export default function ScreenRecorder() {
     wsRef.current.send(JSON.stringify(statusMessage));
   }, [interviewSessionId]);
 
-  const uploadChunk = useCallback(async (chunk: Blob, partNum: number, startTime: number, duration: number) => {
+  const uploadChunk = useCallback((chunk: Blob, partNum: number, startTime: number, duration: number) => {
     if (!wsRef.current || !assetIdRef.current) {
       console.log('⚠️ Cannot upload chunk - missing websocket or asset ID');
       return;
@@ -133,12 +136,15 @@ export default function ScreenRecorder() {
 
     console.log(`📦 Uploading chunk ${partNum}, size: ${chunk.size} bytes, duration: ${duration}s`);
     
-    // Use FileReader for efficient base64 encoding
     const reader = new FileReader();
     reader.onload = () => {
-      const dataUrl = reader.result as string;
-      // Remove data URL prefix (e.g., "data:video/webm;base64,")
-      const base64 = dataUrl.split(',')[1];
+      const arrayBuffer = reader.result as ArrayBuffer;
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      const base64 = btoa(binary);
 
       const chunkMessage = {
         event: 'upload_chunk',
@@ -154,7 +160,7 @@ export default function ScreenRecorder() {
       console.log(`📤 Sending chunk ${partNum}:`, { ...chunkMessage.data, chunk_data: `[${base64.length} chars]` });
       wsRef.current?.send(JSON.stringify(chunkMessage));
     };
-    reader.readAsDataURL(chunk);
+    reader.readAsArrayBuffer(chunk);
   }, []);
 
   const completeUpload = useCallback(() => {
@@ -172,29 +178,45 @@ export default function ScreenRecorder() {
     wsRef.current.send(JSON.stringify(completeMessage));
   }, []);
 
-  const processChunks = useCallback(() => {
-    const totalSize = chunkBuffer.current.reduce((size, chunk) => size + chunk.size, 0);
-    console.log(`📊 Buffer status: ${chunkBuffer.current.length} chunks, ${totalSize} bytes total`);
-    
-    if (totalSize >= chunkSize && assetIdRef.current) {
-      console.log('🚀 Processing chunks - threshold reached');
-      const combinedChunk = new Blob(chunkBuffer.current, { type: `video/${format}` });
-      partNumberRef.current += 1;
-      const partNum = partNumberRef.current;
-      
-      const now = Date.now();
-      const duration = (now - chunkStartTime.current) / 1000; // Duration in seconds
-      
-      console.log(`📤 Creating upload part ${partNum} with ${chunkBuffer.current.length} chunks`);
-      uploadChunk(combinedChunk, partNum, chunkStartTime.current, duration);
-      
-      chunkBuffer.current = [];
-      chunkStartTime.current = now; // Reset for next chunk
-      setState(prev => ({ ...prev, partNumber: partNum }));
-    } else if (totalSize >= chunkSize && !assetIdRef.current) {
-      console.log('⚠️ Chunks ready but no asset ID yet - waiting for session initialization');
-    }
-  }, [chunkSize, format, uploadChunk]);
+  const createRecorder = useCallback((stream: MediaStream) => {
+    if (!recorderOptionsRef.current) return null;
+
+    const recorder = new MediaRecorder(stream, recorderOptionsRef.current);
+    let chunkData: Blob | null = null;
+
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        console.log(`📹 Complete chunk received: ${event.data.size} bytes`);
+        chunkData = event.data;
+      }
+    };
+
+    recorder.onstop = () => {
+      if (chunkData && assetIdRef.current) {
+        partNumberRef.current += 1;
+        const partNum = partNumberRef.current;
+        const now = Date.now();
+        const duration = (now - chunkStartTime.current) / 1000;
+        console.log(`📤 Uploading complete chunk ${partNum}`);
+        uploadChunk(chunkData, partNum, chunkStartTime.current, duration);
+        chunkStartTime.current = now;
+        setState(prev => ({ ...prev, partNumber: partNum }));
+      }
+
+      // Restart recorder if still recording
+      if (isRecordingRef.current && streamRef.current) {
+        console.log('🔄 Restarting recorder for next chunk...');
+        const newRecorder = createRecorder(streamRef.current);
+        if (newRecorder) {
+          newRecorder.start();
+          setState(prev => ({ ...prev, mediaRecorder: newRecorder }));
+          setTimeout(() => newRecorder.stop(), chunkIntervalMs);
+        }
+      }
+    };
+
+    return recorder;
+  }, [uploadChunk, chunkIntervalMs]);
 
   const startRecording = async () => {
     try {
@@ -237,7 +259,7 @@ export default function ScreenRecorder() {
 
       const mimeType = format === 'mp4' ? 'video/mp4' : 'video/webm';
       console.log('🎥 Creating MediaRecorder with type:', mimeType);
-      // Highest quality bitrates
+      
       const getBitrate = () => {
         const videoTrack = stream.getVideoTracks()[0];
         const settings = videoTrack.getSettings();
@@ -246,15 +268,14 @@ export default function ScreenRecorder() {
         const pixels = actualWidth * actualHeight;
         
         switch (quality) {
-          case '1080p': return 20000000; // 20 Mbps
-          case '720p': return 12000000;  // 12 Mbps
-          case '480p': return 8000000;   // 8 Mbps
-          default: 
-            // Auto - highest quality based on resolution
-            if (pixels > 1920 * 1080) return 25000000; // 25 Mbps for higher res
-            if (pixels > 1280 * 720) return 20000000;  // 20 Mbps for 1080p
-            if (pixels > 854 * 480) return 12000000;   // 12 Mbps for 720p
-            return 8000000; // 8 Mbps for lower res
+          case '1080p': return 20000000;
+          case '720p': return 12000000;
+          case '480p': return 8000000;
+          default:
+            if (pixels > 1920 * 1080) return 25000000;
+            if (pixels > 1280 * 720) return 20000000;
+            if (pixels > 854 * 480) return 12000000;
+            return 8000000;
         }
       };
       
@@ -263,67 +284,23 @@ export default function ScreenRecorder() {
         videoBitsPerSecond: getBitrate(),
         audioBitsPerSecond: 128000
       };
-      const recorder = new MediaRecorder(stream, options);
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          console.log(`📹 Data available: ${event.data.size} bytes`);
-          chunkBuffer.current.push(event.data);
-          
-          const totalSize = chunkBuffer.current.reduce((sum, chunk) => sum + chunk.size, 0);
-          console.log(`📊 Buffer total: ${totalSize} bytes`);
-          
-          if (totalSize >= chunkSize && assetIdRef.current) {
-            const blob = new Blob(chunkBuffer.current, { type: `video/${format}` });
-            partNumberRef.current += 1;
-            const partNum = partNumberRef.current;
-            const now = Date.now();
-            const duration = (now - chunkStartTime.current) / 1000;
-            console.log(`📤 Uploading chunk ${partNum}, total size: ${blob.size} bytes`);
-            uploadChunk(blob, partNum, chunkStartTime.current, duration);
-            chunkStartTime.current = now;
-            chunkBuffer.current = [];
-          }
-        }
-      };
-
-      recorder.onstop = () => {
-        console.log('⏹️ Recording stopped');
-        if (uploadIntervalRef.current) {
-          clearInterval(uploadIntervalRef.current);
-          uploadIntervalRef.current = null;
-        }
-        stream.getTracks().forEach(track => track.stop());
-        if (chunkBuffer.current.length > 0 && assetIdRef.current) {
-          const finalChunk = new Blob(chunkBuffer.current, { type: `video/${format}` });
-          if (finalChunk.size >= chunkSize) {
-            console.log('📦 Uploading final chunk');
-            partNumberRef.current += 1;
-            const finalPartNumber = partNumberRef.current;
-            const now = Date.now();
-            const duration = (now - chunkStartTime.current) / 1000;
-            uploadChunk(finalChunk, finalPartNumber, chunkStartTime.current, duration);
-            setState(prev => ({ ...prev, partNumber: finalPartNumber }));
-          } else {
-            console.log(`🗑️ Discarding final chunk (${finalChunk.size} bytes < 5MB minimum)`);
-          }
-          chunkBuffer.current = [];
-        } else if (chunkBuffer.current.length > 0) {
-          console.log('⚠️ Final chunks available but no asset ID');
-        }
-      };
-
-      console.log('▶️ Starting recorder...');
+      streamRef.current = stream;
+      recorderOptionsRef.current = options;
       recordingStartTime.current = Date.now();
       chunkStartTime.current = Date.now();
+
+      const recorder = createRecorder(stream);
+      if (!recorder) {
+        console.error('❌ Failed to create recorder');
+        return;
+      }
+
+      console.log('▶️ Starting recorder...');
+      isRecordingRef.current = true;
       recorder.start();
-      
-      // Request data every 3 seconds for faster uploads with high bitrate
-      uploadIntervalRef.current = setInterval(() => {
-        if (recorder.state === 'recording') {
-          recorder.requestData();
-        }
-      }, 3000);
+      setTimeout(() => recorder.stop(), chunkIntervalMs);
+
       setState(prev => ({
         ...prev,
         isRecording: true,
@@ -359,25 +336,29 @@ export default function ScreenRecorder() {
 
   const stopRecording = () => {
     console.log('⏹️ Stopping recording...');
-    if (state.mediaRecorder) {
+    isRecordingRef.current = false;
+    setState(prev => ({ ...prev, isRecording: false }));
+
+    if (state.mediaRecorder && state.mediaRecorder.state === 'recording') {
       state.mediaRecorder.stop();
-      setState(prev => ({
-        ...prev,
-        isRecording: false,
-        mediaRecorder: null
-      }));
-      
-      uploadCompleteReceived.current = false;
-      console.log('⏳ Waiting 5s before completing upload...');
-      setTimeout(() => {
-        if (state.recordingAssetId && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          completeUpload();
-          // WebSocket will be closed automatically when upload_complete is received
-        } else {
-          console.log('❌ Cannot complete upload - WebSocket closed or no asset ID');
-        }
-      }, 5000);
     }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+
+    setState(prev => ({ ...prev, mediaRecorder: null }));
+    uploadCompleteReceived.current = false;
+
+    console.log('⏳ Waiting 5s before completing upload...');
+    setTimeout(() => {
+      if (assetIdRef.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        completeUpload();
+      } else {
+        console.log('❌ Cannot complete upload - WebSocket closed or no asset ID');
+      }
+    }, 5000);
   };
 
   return (
