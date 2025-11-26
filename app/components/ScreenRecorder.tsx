@@ -1,13 +1,21 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 
 interface RecorderState {
   isRecording: boolean;
-  mediaRecorder: MediaRecorder | null;
-  combinedStream: MediaStream | null;
+  recorders: {
+    screen?: MediaRecorder;
+    mic_audio?: MediaRecorder;
+  };
   websocket: WebSocket | null;
   recordingAssetId: number | null;
+}
+
+interface PendingBinary {
+  partNumber: number;
+  streamType: string;
+  data: ArrayBuffer;
 }
 
 export default function ScreenRecorder() {
@@ -18,18 +26,72 @@ export default function ScreenRecorder() {
   const [format, setFormat] = useState<'mp4' | 'webm'>('webm');
   const [state, setState] = useState<RecorderState>({
     isRecording: false,
-    mediaRecorder: null,
-    combinedStream: null,
+    recorders: {},
     websocket: null,
     recordingAssetId: null
   });
 
   const wsRef = useRef<WebSocket | null>(null);
   const assetIdRef = useRef<number | null>(null);
-  const partNumberRef = useRef(0);
-  const uploadCompleteReceived = useRef(false);
+  const screenPartNumberRef = useRef(0);
+  const micPartNumberRef = useRef(0);
+  const pendingBinaryRef = useRef<PendingBinary | null>(null);
   const isRecordingRef = useRef(false);
-  const chunkIntervalMs = 5000; // 5 seconds per chunk
+  const chunkIntervalMs = 15000; // 15 seconds per chunk
+
+  const processUploadQueue = useCallback(async () => {
+    if (isUploading.current || uploadQueue.current.length === 0) {
+      return;
+    }
+
+    isUploading.current = true;
+    const { blob, streamType, partNumber } = uploadQueue.current.shift()!;
+
+    if (!wsRef.current || !assetIdRef.current) {
+      console.log('⚠️ Cannot upload chunk - missing websocket or asset ID');
+      isUploading.current = false;
+      return;
+    }
+
+    if (wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log(`⚠️ WebSocket not open, skipping ${streamType} chunk ${partNumber}`);
+      isUploading.current = false;
+      return;
+    }
+
+    console.log(`📦 Uploading ${streamType} chunk ${partNumber}, size: ${blob.size} bytes`);
+    
+    try {
+      const arrayBuffer = await blob.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+      const checksum = await calculateChecksum(arrayBuffer);
+
+      pendingBinaryRef.current = {
+        partNumber,
+        streamType,
+        data: arrayBuffer
+      };
+
+      const metadataMessage = {
+        event: 'upload_chunk_metadata',
+        data: {
+          asset_id: assetIdRef.current,
+          part_number: partNumber,
+          stream_type: streamType,
+          checksum,
+          start_timestamp: Date.now() / 1000,
+          duration_seconds: chunkIntervalMs / 1000,
+          data_size: uint8Array.byteLength
+        }
+      };
+      console.log(`📤 Sending metadata for ${streamType} part ${partNumber}`);
+      wsRef.current.send(JSON.stringify(metadataMessage));
+    } catch (error) {
+      console.error(`❌ Error processing ${streamType} chunk ${partNumber}:`, error);
+      pendingBinaryRef.current = null;
+      isUploading.current = false;
+    }
+  }, [chunkIntervalMs]);
 
   const connectWebSocket = useCallback(() => {
     const wsUrl = `${process.env.NEXT_PUBLIC_WEBSOCKET_DOMAIN}/ws/recording/${websocketId}`;
@@ -47,30 +109,63 @@ export default function ScreenRecorder() {
     };
 
     ws.onmessage = (event) => {
+      // Handle binary messages differently from JSON messages
+      if (event.data instanceof ArrayBuffer || event.data instanceof Blob) {
+        console.log('📥 Received binary data:', event.data);
+        return; // Binary data should not reach here in our protocol
+      }
+      
       const message = JSON.parse(event.data);
       console.log('📥 Received message:', JSON.stringify(message, null, 2));
       
       if (message.event === 'authenticated') {
         console.log('✅ Authentication successful');
       } else if (message.event === 'session_recording_initialized') {
-        console.log('🎬 Recording initialized, asset ID:', message.data.recording_asset_id);
-        assetIdRef.current = message.data.recording_asset_id;
-        partNumberRef.current = message.data.last_part_number || 0;
-        setState(prev => ({
-          ...prev,
-          recordingAssetId: message.data.recording_asset_id
-        }));
-      } else if (message.event === 'chunk_queued') {
-        console.log('📋 Chunk queued:', message.data.part_number, 'Task ID:', message.data.task_id);
-      } else if (message.type === 'chunk_ack') {
-        console.log('✅ Chunk acknowledged:', message.part_number, 'ETag:', message.etag);
-      } else if (message.type === 'chunk_nack' || message.event === 'chunk_nack') {
-        console.log('❌ Chunk rejected:', message.part_number || message.data?.part_number, 'Error:', message.error || message.data?.error);
+        const { recording_asset_id, status, last_parts_by_stream } = message.data || {};
+        console.log('🎬 Recording initialized, asset ID:', recording_asset_id);
+        
+        assetIdRef.current = recording_asset_id;
+        
+        if (status === 'resuming' && last_parts_by_stream) {
+          screenPartNumberRef.current = last_parts_by_stream.screen || 0;
+          micPartNumberRef.current = last_parts_by_stream.mic_audio || 0;
+          console.log(`📥 Resuming: screen from part ${screenPartNumberRef.current}, mic from part ${micPartNumberRef.current}`);
+        }
+        
+        setState(prev => ({ ...prev, recordingAssetId: recording_asset_id }));
+      } else if (message.event === 'session_status_response') {
+        const { last_parts_by_stream, stream_parts, stream_sizes } = message.data || {};
+        console.log('📊 Stream status:', {
+          screenParts: stream_parts?.screen?.length || 0,
+          micParts: stream_parts?.mic_audio?.length || 0,
+          screenSize: stream_sizes?.screen || 0,
+          micSize: stream_sizes?.mic_audio || 0
+        });
+      } else if (message.event === 'ready_for_binary') {
+        console.log('📤 Ready for binary:', message.data);
+        sendBinaryData(message.data);
+      } else if (message.event === 'chunk_ack') {
+        console.log(`✅ ${message.data?.stream_type} part ${message.data?.part_number} acknowledged`);
+        
+        // Process next item in upload queue
+        isUploading.current = false;
+        processUploadQueue();
+      } else if (message.event === 'chunk_nack') {
+        console.log(`❌ ${message.data?.stream_type} part ${message.data?.part_number} rejected:`, message.data?.error);
+        
+        // Clear pending binary data on error and process next in queue
+        if (pendingBinaryRef.current && 
+            pendingBinaryRef.current.partNumber === message.data?.part_number &&
+            pendingBinaryRef.current.streamType === message.data?.stream_type) {
+          console.log('🗑️ Clearing failed pending binary data');
+          pendingBinaryRef.current = null;
+        }
+        
+        // Process next item in upload queue
+        isUploading.current = false;
+        processUploadQueue();
       } else if (message.event === 'upload_complete') {
         console.log('🎉 Upload completed:', message.data);
-        uploadCompleteReceived.current = true;
-      } else if (message.event === 'session_status_response') {
-        console.log('📊 Session status:', message.data);
       }
     };
 
@@ -85,42 +180,68 @@ export default function ScreenRecorder() {
     wsRef.current = ws;
     setState(prev => ({ ...prev, websocket: ws }));
     return ws;
-  }, [websocketId, websocketToken]);
+  }, [websocketId, websocketToken, processUploadQueue]);
 
-  const uploadChunk = useCallback((chunk: Blob, partNum: number) => {
-    if (!wsRef.current || !assetIdRef.current) {
-      console.log('⚠️ Cannot upload chunk - missing websocket or asset ID');
+  const calculateChecksum = async (arrayBuffer: ArrayBuffer): Promise<string> => {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    return Array.from(new Uint8Array(hashBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  };
+
+  const sendBinaryData = (readyData: { part_number: number; stream_type: string } | undefined) => {
+    if (!readyData) {
+      console.log('⚠️ No ready data provided');
       return;
     }
-
-    console.log(`📦 Uploading chunk ${partNum}, size: ${chunk.size} bytes`);
     
-    const reader = new FileReader();
-    reader.onload = () => {
-      const arrayBuffer = reader.result as ArrayBuffer;
-      const bytes = new Uint8Array(arrayBuffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const base64 = btoa(binary);
-
-      const chunkMessage = {
-        event: 'upload_chunk',
-        data: {
-          asset_id: assetIdRef.current,
-          part_number: partNum,
-          chunk_data: base64,
-          checksum: 'no-validation',
-          start_timestamp: Math.floor(Date.now() / 1000),
-          duration_seconds: Math.round(chunkIntervalMs / 1000)
+    console.log(`🔍 Looking for pending binary: part ${readyData.part_number}, stream ${readyData.stream_type}`);
+    
+    if (pendingBinaryRef.current &&
+        pendingBinaryRef.current.partNumber === readyData.part_number &&
+        pendingBinaryRef.current.streamType === readyData.stream_type) {
+      console.log(`📤 Sending binary data for ${readyData.stream_type} part ${readyData.part_number}`);
+      
+      // Check if WebSocket is still open before sending
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        // Validate that we have binary data
+        if (pendingBinaryRef.current.data instanceof ArrayBuffer) {
+          console.log(`📤 Sending ${pendingBinaryRef.current.data.byteLength} bytes of binary data`);
+          wsRef.current.send(pendingBinaryRef.current.data);
+          console.log(`✅ Binary data sent successfully`);
+        } else {
+          console.error('❌ Invalid binary data type:', typeof pendingBinaryRef.current.data);
         }
-      };
-      console.log(`📤 Sending chunk ${partNum}:`, { ...chunkMessage.data, chunk_data: `[${base64.length} chars]` });
-      wsRef.current?.send(JSON.stringify(chunkMessage));
-    };
-    reader.readAsArrayBuffer(chunk);
-  }, [chunkIntervalMs]);
+        pendingBinaryRef.current = null;
+      } else {
+        console.log('⚠️ WebSocket not ready, skipping binary data send');
+        pendingBinaryRef.current = null;
+      }
+    } else {
+      console.log(`⚠️ No matching pending binary data found. Current pending:`, 
+        pendingBinaryRef.current ? 
+        `part ${pendingBinaryRef.current.partNumber}, stream ${pendingBinaryRef.current.streamType}` : 
+        'none');
+    }
+  };
+
+  const uploadQueue = useRef<Array<{blob: Blob, streamType: string, partNumber: number}>>([]);
+  const isUploading = useRef(false);
+
+  const uploadChunk = useCallback(async (blob: Blob, streamType: string, partNumber: number) => {
+    uploadQueue.current.push({ blob, streamType, partNumber });
+    processUploadQueue();
+  }, [processUploadQueue]);
+
+  const uploadScreenChunk = useCallback(async (blob: Blob) => {
+    screenPartNumberRef.current += 1;
+    await uploadChunk(blob, 'screen', screenPartNumberRef.current);
+  }, [uploadChunk]);
+
+  const uploadMicChunk = useCallback(async (blob: Blob) => {
+    micPartNumberRef.current += 1;
+    await uploadChunk(blob, 'mic_audio', micPartNumberRef.current);
+  }, [uploadChunk]);
 
   const handleScreenSharingError = (err: any) => {
     if (!err) {
@@ -155,56 +276,92 @@ export default function ScreenRecorder() {
     console.error("Screen sharing error:", err);
   };
 
-  const createRecorder = useCallback((stream: MediaStream) => {
-    const mimeType = format === 'mp4' ? 'video/mp4' : 'video/webm';
-    const recorder = new MediaRecorder(stream, { mimeType });
-    let chunkData: Blob | null = null;
-
-    recorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        console.log(`📹 Combined chunk received: ${event.data.size} bytes`);
-        chunkData = event.data;
-      }
+  const setupRecorder = useCallback((streamType: string, stream: MediaStream, mimeType: string) => {
+    // Ensure proper WebM support
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      console.warn(`${mimeType} not supported, falling back to default`);
+      mimeType = streamType === 'screen' ? 'video/webm' : 'audio/webm';
+    }
+    
+    let currentRecorder: MediaRecorder | null = null;
+    let isRecording = true;
+    
+    const createNewRecorder = () => {
+      if (!isRecording) return;
+      
+      const recorder = new MediaRecorder(stream, { 
+        mimeType,
+        videoBitsPerSecond: streamType === 'screen' ? 2500000 : undefined,
+        audioBitsPerSecond: 128000
+      });
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0 && isRecording) {
+          console.log(`📹 ${streamType} chunk received: ${event.data.size} bytes`);
+          
+          if (streamType === 'screen') {
+            uploadScreenChunk(event.data);
+          } else if (streamType === 'mic_audio') {
+            uploadMicChunk(event.data);
+          }
+        }
+      };
+      
+      recorder.onstop = () => {
+        if (isRecording) {
+          // Start new recorder for next chunk to ensure proper EBML headers
+          setTimeout(createNewRecorder, 100);
+        }
+      };
+      
+      recorder.start();
+      currentRecorder = recorder;
+      
+      // Stop after interval to create complete WebM chunk
+      setTimeout(() => {
+        if (recorder.state === 'recording') {
+          recorder.stop();
+        }
+      }, chunkIntervalMs);
     };
-
-    recorder.onstop = () => {
-      if (chunkData && assetIdRef.current) {
-        partNumberRef.current += 1;
-        const partNum = partNumberRef.current;
-        console.log(`📤 Uploading chunk ${partNum}`);
-        uploadChunk(chunkData, partNum);
+    
+    // Start first recorder
+    createNewRecorder();
+    
+    // Return a mock recorder with stop method
+    const mockRecorder = {
+      state: 'recording',
+      stream,
+      stop: () => {
+        isRecording = false;
+        if (currentRecorder && currentRecorder.state === 'recording') {
+          currentRecorder.stop();
+        }
       }
+    } as MediaRecorder;
+    
+    console.log(`✅ ${streamType} recorder started with ${mimeType}`);
+    return mockRecorder;
+  }, [uploadScreenChunk, uploadMicChunk, chunkIntervalMs]);
 
-      // Restart recorder if still recording
-      if (isRecordingRef.current && stream.active) {
-        console.log(`🔄 Restarting recorder...`);
-        recorder.start();
-        setTimeout(() => recorder.stop(), chunkIntervalMs);
-      }
-    };
-
-    return recorder;
-  }, [uploadChunk, format, chunkIntervalMs]);
-
-  const startCombinedRecording = async () => {
+  const startMultiStreamRecording = async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
         alert("Your browser may not support screen sharing. Please update your browser or try a different one (like Chrome or Firefox).");
         return;
       }
 
-      // Get screen share with system audio
+      // Get screen with both video and audio
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         // @ts-ignore
         video: { mediaSource: "screen" },
-        audio: true // This captures system audio
+        audio: true
       });
 
       let displaySurface = screenStream.getVideoTracks()[0].getSettings().displaySurface;
       if (displaySurface !== "monitor") {
         alert("Selection of entire screen mandatory!");
-        const tracks = screenStream.getTracks();
-        tracks.forEach((track) => track.stop());
+        screenStream.getTracks().forEach(track => track.stop());
         return;
       }
 
@@ -214,63 +371,20 @@ export default function ScreenRecorder() {
         video: false
       });
 
-      // Create Web Audio API context to mix audio
-      const audioContext = new AudioContext();
-      const destination = audioContext.createMediaStreamDestination();
+      const recorders = {
+        screen: setupRecorder('screen', screenStream, 'video/webm;codecs=vp9,opus'),
+        mic_audio: setupRecorder('mic_audio', micStream, 'audio/webm;codecs=opus')
+      };
 
-      // Create combined stream with screen video
-      const combinedStream = new MediaStream();
-      
-      // Add screen video track
-      screenStream.getVideoTracks().forEach(track => {
-        combinedStream.addTrack(track);
-      });
-
-      // Mix audio using Web Audio API
-      const screenAudioTracks = screenStream.getAudioTracks();
-      const micAudioTracks = micStream.getAudioTracks();
-
-      if (screenAudioTracks.length > 0) {
-        const screenAudioStream = new MediaStream([screenAudioTracks[0]]);
-        const screenSource = audioContext.createMediaStreamSource(screenAudioStream);
-        screenSource.connect(destination);
-        console.log('✅ Screen audio connected');
-      }
-
-      if (micAudioTracks.length > 0) {
-        const micAudioStream = new MediaStream([micAudioTracks[0]]);
-        const micSource = audioContext.createMediaStreamSource(micAudioStream);
-        micSource.connect(destination);
-        console.log('✅ Microphone audio connected');
-      }
-
-      // Add mixed audio track to combined stream
-      destination.stream.getAudioTracks().forEach(track => {
-        combinedStream.addTrack(track);
-      });
-
-      const track = screenStream.getVideoTracks()[0];
-      track.onended = function () {
+      screenStream.getVideoTracks()[0].onended = () => {
         console.log('Screen sharing ended');
-        audioContext.close();
         setState(prev => ({ ...prev, isRecording: false }));
       };
 
-      const recorderInstance = createRecorder(combinedStream);
-      recorderInstance.start();
-      setTimeout(() => recorderInstance.stop(), chunkIntervalMs);
-
-      setState(prev => ({
-        ...prev,
-        mediaRecorder: recorderInstance,
-        combinedStream: combinedStream
-      }));
-
-      console.log('✅ Combined recording started (Screen + Mixed Audio)');
-      console.log(`📊 Audio tracks in combined stream: ${combinedStream.getAudioTracks().length}`);
-      console.log(`📊 Video tracks in combined stream: ${combinedStream.getVideoTracks().length}`);
+      setState(prev => ({ ...prev, recorders }));
+      console.log('✅ Multi-stream recording started (2 streams: screen+audio, mic)');
     } catch (err: any) {
-      console.error("Combined recording error:", err);
+      console.error("Multi-stream recording error:", err);
       handleScreenSharingError(err);
     }
   };
@@ -298,9 +412,9 @@ export default function ScreenRecorder() {
           setTimeout(async () => {
             alert('Please ensure screen sharing is active for smooth communication. Remember to share your entire screen!');
             isRecordingRef.current = true;
-            await startCombinedRecording();
+            await startMultiStreamRecording();
             setState(prev => ({ ...prev, isRecording: true }));
-            console.log('✅ Combined recording started successfully');
+            console.log('✅ Multi-stream recording started successfully');
           }, 1000);
         }
       }, 1000);
@@ -350,28 +464,28 @@ export default function ScreenRecorder() {
     const userConfirmed = confirm("Do you want to end the recording?");
     if (!userConfirmed) return;
 
-    console.log('⏹️ Stopping combined recording...');
-    isRecordingRef.current = false;
-    setState(prev => ({ ...prev, isRecording: false }));
+    console.log('⏹️ Stopping multi-stream recording...');
+    
+    // Stop recorders first to prevent new chunks
+    Object.values(state.recorders).forEach(recorder => {
+      if (recorder && recorder.state !== 'inactive') {
+        // Clear interval if it exists
+        if ((recorder as any).intervalId) {
+          clearInterval((recorder as any).intervalId);
+        }
+        recorder.stop();
+        recorder.stream.getTracks().forEach(track => track.stop());
+      }
+    });
 
-    if (state.mediaRecorder && state.mediaRecorder.state === "recording") {
-      state.mediaRecorder.stop();
-    }
-
-    if (state.combinedStream) {
-      state.combinedStream.getTracks().forEach(track => track.stop());
-    }
-
-    setState(prev => ({
-      ...prev,
-      mediaRecorder: null,
-      combinedStream: null
-    }));
-
-    uploadCompleteReceived.current = false;
-
-    console.log('⏳ Waiting 5s before completing upload...');
+    // Update UI state immediately
+    setState(prev => ({ ...prev, isRecording: false, recorders: {} }));
+    
+    // Wait longer for final chunks to be processed before completing upload
+    console.log('⏳ Waiting 5s for final chunks to process...');
     setTimeout(() => {
+      isRecordingRef.current = false; // Set this after final chunks are processed
+      
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         completeUpload();
       } else {
@@ -384,7 +498,7 @@ export default function ScreenRecorder() {
 
   return (
     <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg">
-      <h1 className="text-2xl font-bold mb-6 text-center">Combined Screen Recorder</h1>
+      <h1 className="text-2xl font-bold mb-6 text-center">Multi-Stream Screen Recorder</h1>
       
       <div className="space-y-4">
         <div>
@@ -444,7 +558,10 @@ export default function ScreenRecorder() {
           <h3 className="font-medium mb-2">Recording Status</h3>
           <div className="space-y-1 text-sm">
             <div>WebSocket: {state.websocket ? '🟢 Connected' : '🔴 Disconnected'}</div>
-            <div>Combined Recording: {state.mediaRecorder ? '🔴 Active' : '⚫ Inactive'}</div>
+            <div>Screen (Video+Audio): {state.recorders.screen ? '🔴 Active' : '⚫ Inactive'}</div>
+            <div>Mic Audio: {state.recorders.mic_audio ? '🔴 Active' : '⚫ Inactive'}</div>
+            <div>Screen Parts: {screenPartNumberRef.current}</div>
+            <div>Mic Parts: {micPartNumberRef.current}</div>
             <div>Chunk Interval: {chunkIntervalMs / 1000}s</div>
           </div>
         </div>
@@ -452,12 +569,12 @@ export default function ScreenRecorder() {
         <div className="bg-blue-50 p-4 rounded-md">
           <h3 className="font-medium mb-2">Features</h3>
           <ul className="text-sm space-y-1">
-            <li>✅ Screen video capture</li>
-            <li>✅ Screen audio capture</li>
-            <li>✅ Microphone audio capture</li>
-            <li>✅ Web Audio API mixing</li>
-            <li>✅ Single combined stream</li>
-            <li>✅ 5-second chunk uploads via WebSocket</li>
+            <li>✅ 2 streams (screen+audio, mic)</li>
+            <li>✅ Binary data transfer (no base64)</li>
+            <li>✅ SHA-256 checksums</li>
+            <li>✅ 15-second chunks</li>
+            <li>✅ Backend audio mixing</li>
+            <li>✅ Reduced memory usage</li>
             <li>✅ Full screen enforcement</li>
           </ul>
         </div>
@@ -468,7 +585,7 @@ export default function ScreenRecorder() {
             disabled={state.isRecording || !websocketId || !websocketToken || !interviewSessionId}
             className="flex-1 bg-red-500 text-white p-2 rounded-md disabled:bg-gray-300 font-medium"
           >
-            {state.isRecording ? '🔴 Recording...' : '▶️ Start Combined Recording'}
+            {state.isRecording ? '🔴 Recording...' : '▶️ Start Multi-Stream Recording'}
           </button>
           
           <button
@@ -484,7 +601,7 @@ export default function ScreenRecorder() {
           <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-md">
             <p className="text-sm text-yellow-800">
               <strong>Recording in progress...</strong><br/>
-              Screen + screen audio + microphone are being recorded in 5-second chunks via WebSocket.
+              2 streams (screen+audio, mic) are being recorded in 15-second binary chunks.
               Do not close this tab or stop screen sharing.
             </p>
           </div>
